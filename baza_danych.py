@@ -46,7 +46,6 @@ def add_station(engine, station, latitude, longitude, elevation, name, country, 
         state=state,
     )
     connection.execute(station_data)
-    connection.close()
 
 
 def add_measure(engine, station, date, precip, tobs):
@@ -55,14 +54,12 @@ def add_measure(engine, station, date, precip, tobs):
         station=station, date=date, precip=precip, tobs=tobs
     )
     connection.execute(measure_data)
-    connection.close()
 
 
 def select_data(engine, table, field, value):
     connection = engine.connect()
     select_data = select([table]).where(getattr(table.c, field) == value)
     result = connection.execute(select_data).fetchall()
-    connection.close()
     return result
 
 
@@ -70,53 +67,56 @@ def update_data(engine, table, id, field, value):
     connection = engine.connect()
     update_data = update(table).where(table.c.id == id).values(**{field: value})
     connection.execute(update_data)
-    connection.close()
 
 
 def delete_data(engine, table, id):
     connection = engine.connect()
     delete_data = delete(table).where(table.c.id == id)
     connection.execute(delete_data)
-    connection.close()
+
+
+def get_data_from_csv(conn, name, table_name):
+    conn = engine.connect()
+    data = pd.read_csv(name)
+    station = table_name.insert()
+    conn.execute(station, data.to_dict("records"))
 
 
 if __name__ == "__main__":
     meta = MetaData()
     engine = create_engine("sqlite:///database.db")
-
-    # Tworzenie tabel
-    station_table = create_stations_table(meta, engine)
-    measure_table = create_measure_table(meta, engine)
-
-    # Dodawanie danych z DataFrame
-    stations_data = pd.read_csv("clean_stations.csv")
-    measure_data = pd.read_csv("clean_measure.csv")
     conn = engine.connect()
-    station = station_table.insert()
-    conn.execute(station, stations_data.to_dict("records"))
-    measure = measure_table.insert()
-    conn.execute(measure, measure_data.to_dict("records"))
+    if conn is not None:
+        # Tworzenie tabel
+        station_table = create_stations_table(meta, engine)
+        measure_table = create_measure_table(meta, engine)
 
-    # Dodawanie danych
-    add_station(
-        engine,
-        "USC00519397",
-        "23.2743",
-        "-155.8168",
-        "3.0",
-        "WAIKIKI 717.2",
-        "US",
-        "HI",
-    )
+        # Dodawanie danych z DataFrame
 
-    # Wyświetlanie danych:
-    print(select_data(engine, station_table, "id", "10"))
+        stations_data = get_data_from_csv(conn, "clean_stations.csv", station_table)
+        measure_data = get_data_from_csv(conn, "clean_measure.csv", measure_table)
 
-    # Aktualizowanie:
-    update_data(engine, station_table, 10, "name", "test")
+        # Dodawanie danych
+        add_station(
+            engine,
+            "USC00519397",
+            "23.2743",
+            "-155.8168",
+            "3.0",
+            "WAIKIKI 717.2",
+            "US",
+            "HI",
+        )
 
-    # Wyświetlanie zaktualiowanych danych:
-    print(select_data(engine, station_table, "id", "10"))
+        # Wyświetlanie danych:
+        print(select_data(engine, station_table, "id", "10"))
 
-    # Usuwanie danych:
-    delete_data(engine, station_table, 10)
+        # Aktualizowanie:
+        update_data(engine, station_table, 10, "name", "test")
+
+        # Wyświetlanie zaktualiowanych danych:
+        print(select_data(engine, station_table, "id", "10"))
+
+        # Usuwanie danych:
+        delete_data(engine, station_table, 10)
+        conn.close()
