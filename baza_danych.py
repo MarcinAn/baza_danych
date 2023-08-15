@@ -34,8 +34,7 @@ def create_measure_table(meta, engine):
     return measure_table
 
 
-def add_station(engine, station, latitude, longitude, elevation, name, country, state):
-    connection = engine.connect()
+def add_station(conn, station, latitude, longitude, elevation, name, country, state):
     station_data = station_table.insert().values(
         station=station,
         latitude=latitude,
@@ -45,38 +44,33 @@ def add_station(engine, station, latitude, longitude, elevation, name, country, 
         country=country,
         state=state,
     )
-    connection.execute(station_data)
+    conn.execute(station_data)
 
 
-def add_measure(engine, station, date, precip, tobs):
-    connection = engine.connect()
+def add_measure(conn, station, date, precip, tobs):
     measure_data = measure_table.insert().values(
         station=station, date=date, precip=precip, tobs=tobs
     )
-    connection.execute(measure_data)
+    conn.execute(measure_data)
 
 
-def select_data(engine, table, field, value):
-    connection = engine.connect()
+def select_data(conn, table, field, value):
     select_data = select([table]).where(getattr(table.c, field) == value)
-    result = connection.execute(select_data).fetchall()
+    result = conn.execute(select_data).fetchall()
     return result
 
 
-def update_data(engine, table, id, field, value):
-    connection = engine.connect()
+def update_data(conn, table, id, field, value):
     update_data = update(table).where(table.c.id == id).values(**{field: value})
-    connection.execute(update_data)
+    conn.execute(update_data)
 
 
-def delete_data(engine, table, id):
-    connection = engine.connect()
+def delete_data(conn, table, id):
     delete_data = delete(table).where(table.c.id == id)
-    connection.execute(delete_data)
+    conn.execute(delete_data)
 
 
 def get_data_from_csv(conn, name, table_name):
-    conn = engine.connect()
     data = pd.read_csv(name)
     station = table_name.insert()
     conn.execute(station, data.to_dict("records"))
@@ -109,14 +103,14 @@ if __name__ == "__main__":
         )
 
         # Wyświetlanie danych:
-        print(select_data(engine, station_table, "id", "10"))
+        print(select_data(conn, station_table, "id", "10"))
 
         # Aktualizowanie:
-        update_data(engine, station_table, 10, "name", "test")
+        update_data(conn, station_table, 10, "name", "test")
 
         # Wyświetlanie zaktualiowanych danych:
-        print(select_data(engine, station_table, "id", "10"))
+        print(select_data(conn, station_table, "id", "10"))
 
         # Usuwanie danych:
-        delete_data(engine, station_table, 10)
+        delete_data(conn, station_table, 10)
         conn.close()
